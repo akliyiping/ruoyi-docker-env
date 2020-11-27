@@ -1,357 +1,482 @@
-# <center>使用Docker 部署 LNMP+Redis 环境 </center>
-[![GitHub issues](https://img.shields.io/github/issues/voocel/docker-lnmp.svg)](https://github.com/voocel/docker-lnmp/issues)
-[![GitHub stars](https://img.shields.io/github/stars/voocel/docker-lnmp.svg)](https://github.com/voocel/docker-lnmp/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/voocel/docker-lnmp.svg)](https://github.com/voocel/docker-lnmp/network)
+DNMP（Docker + Nginx + MySQL + PHP7/5 + Redis）是一款全功能的**LNMP一键安装程序**。
 
-### <font face="黑体">Docker 简介</font>
-  Docker 是一个开源的应用容器引擎，让开发者可以打包他们的应用以及依赖包到一个可移植的容器中，然后发布到任何流行的 Linux 机器上，也可以实现虚拟化。容器是完全使用沙箱机制，相互之间不会有任何接口。推荐内核版本3.8及以上
+> 使用前最好提前阅读一遍[目录](#目录)，以便快速上手，遇到问题也能及时排除。交流QQ一群：**572041090（已满）**，二群：**300723526**。
 
-### 为什么使用Docker
+**[[ENGLISH]](README-en.md)** -
+[**[GitHub地址]**](https://github.com/yeszao/dnmp) -
+[**[Gitee地址]**](https://gitee.com/yeszao/dnmp)
 
-1. 加速本地的开发和构建流程，容器可以在开发环境构建，然后轻松地提交到测试环境，并最终进入生产环境
-2. 能够在让独立的服务或应用程序在不同的环境中得到相同的运行结果  
-3. 创建隔离的环境来进行测试  
-4. 高性能、超大规划的宿主机部署  
-5. 从头编译或者扩展现有的OpenShift或Cloud Foundry平台来搭建自己的PaaS环境
+DNMP项目特点：
+1. `100%`开源
+2. `100%`遵循Docker标准
+3. 支持**多版本PHP**共存，可任意切换（PHP5.4、PHP5.6、PHP7.1、PHP7.2、PHP7.3)
+4. 支持绑定**任意多个域名**
+5. 支持**HTTPS和HTTP/2**
+6. **PHP源代码、MySQL数据、配置文件、日志文件**都可在Host中直接修改查看
+7. 内置**完整PHP扩展安装**命令
+8. 默认支持`pdo_mysql`、`mysqli`、`mbstring`、`gd`、`curl`、`opcache`等常用热门扩展，根据环境灵活配置
+9. 可一键选配常用服务：
+    - 多PHP版本：PHP5.4、PHP5.6、PHP7.1-7.3
+    - Web服务：Nginx、Openresty
+    - 数据库：MySQL5、MySQL8、Redis、memcached、MongoDB、ElasticSearch
+    - 消息队列：RabbitMQ
+    - 辅助工具：Kibana、Logstash、phpMyAdmin、phpRedisAdmin、AdminMongo
+10. 实际项目中应用，确保`100%`可用
+11. 所有镜像源于[Docker官方仓库](https://hub.docker.com)，安全可靠
+11. 一次配置，**Windows、Linux、MacOs**皆可用
+12. 支持快速安装扩展命令 `install-php-extensions apcu`
+
+# 目录
+- [1.目录结构](#1目录结构)
+- [2.快速使用](#2快速使用)
+- [3.PHP和扩展](#3PHP和扩展)
+    - [3.1 切换Nginx使用的PHP版本](#31-切换Nginx使用的PHP版本)
+    - [3.2 安装PHP扩展](#32-安装PHP扩展)
+    - [3.3 快速安装php扩展](#33-快速安装php扩展)
+    - [3.4 Host中使用php命令行（php-cli）](#34-host中使用php命令行php-cli)
+    - [3.5 使用composer](#35-使用composer)
+- [4.管理命令](#4管理命令)
+    - [4.1 服务器启动和构建命令](#41-服务器启动和构建命令)
+    - [4.2 添加快捷命令](#42-添加快捷命令)
+- [5.使用Log](#5使用log)
+    - [5.1 Nginx日志](#51-nginx日志)
+    - [5.2 PHP-FPM日志](#52-php-fpm日志)
+    - [5.3 MySQL日志](#53-mysql日志)
+- [6.数据库管理](#6数据库管理)
+    - [6.1 phpMyAdmin](#61-phpmyadmin)
+    - [6.2 phpRedisAdmin](#62-phpredisadmin)
+- [7.在正式环境中安全使用](#7在正式环境中安全使用)
+- [8.常见问题](#8常见问题)
+    - [8.1 如何在PHP代码中使用curl？](#81-如何在php代码中使用curl)
+    - [8.2 Docker使用cron定时任务](#82-Docker使用cron定时任务)
+    - [8.3 Docker容器时间](#83-Docker容器时间)
+    - [8.4 如何连接MySQL和Redis服务器](#84-如何连接MySQL和Redis服务器)
 
 
-## 目录
-* [安装Docker](#安装Docker)
-* [目录结构](#目录结构)
-* [快速使用](#创建镜像与安装)
-* [进入容器内部](#进入容器内部)
-* [PHP扩展安装](#PHP扩展安装)
-* [Composer安装](#Composer安装)
-* [常见问题处理](#常见问题处理)
-* [常用命令](#常用命令)
-* [Dockerfile语法](#Dockerfile语法)
-* [docker-compose语法说明](#docker-compose语法说明)
-
-### 安装Docker
-**windows 安装**
-
-[参考](http://www.iganlei.cn/environment-configuration/798.html)
-
-**mac**
- 
-[docker toolbox参考](https://github.com/widuu/chinese_docker/blob/master/installation/mac.md) 
-
-**linux**
-
-```
-# 下载安装
-curl -sSL https://get.docker.com/ | sh
-
-# 设置开机自启
-sudo systemctl enable docker.service
-
-sudo service docker start|restart|stop
-
-# 安装docker-compose
-curl -L https://github.com/docker/compose/releases/download/1.23.2/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
-```
-
-### 目录结构
-
-```
-docker_lnmp
-├── v2
-├── mysql
-│   └── Dockerfile
-│	└── my.cnf
-├── nginx
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── log
-│   │   └── error.log
-│   └── www
-│       ├── index.html
-│       ├── index.php
-│       ├── db.php
-│       └── redis.php
-├── php
-│   ├── Dockerfile
-│   ├── www.conf
-│   ├── php-fpm.conf
-│   ├── php.ini
-│   └── log
-│       └── php-fpm.log
-└── redis
-    └── Dockerfile
-    └── redis.conf
-```
-
-### 创建镜像与安装
-> 直接使用docker-compose一键制作镜像并启动容器
-
-**版本一(v1)**
+## 1.目录结构
 
 ```
-git clone https://github.com/voocel/docker-lnmp.git
-cd docker-lnmp/v1
-docker-compose up -d
+/
+├── data                        数据库数据目录
+│   ├── esdata                  ElasticSearch 数据目录
+│   ├── mongo                   MongoDB 数据目录
+│   ├── mysql                   MySQL8 数据目录
+│   └── mysql5                  MySQL5 数据目录
+├── services                    服务构建文件和配置文件目录
+│   ├── elasticsearch           ElasticSearch 配置文件目录
+│   ├── mysql                   MySQL8 配置文件目录
+│   ├── mysql5                  MySQL5 配置文件目录
+│   ├── nginx                   Nginx 配置文件目录
+│   ├── php                     PHP5.6 - PHP7.3 配置目录
+│   ├── php54                   PHP5.4 配置目录
+│   └── redis                   Redis 配置目录
+├── logs                        日志目录
+├── docker-compose.sample.yml   Docker 服务配置示例文件
+├── env.smaple                  环境配置示例文件
+└── www                         PHP 代码目录
 ```
 
-*该版本是通过拉取纯净的CentOS镜像，通过Dockerfile相关命令进行源码编译安装各个服务。所以该方式很方便定制自己需要的镜像，但是占用空间大且构建慢。*
+## 2.快速使用
+1. 本地安装
+    - `git`
+    - `Docker`(系统需为Linux，Windows 10 Build 15063+，或MacOS 10.12+，且必须要`64`位）
+    - `docker-compose 1.7.0+`
+2. `clone`项目：
+    ```
+    $ git clone https://github.com/yeszao/dnmp.git
+    ```
+3. 如果不是`root`用户，还需将当前用户加入`docker`用户组：
+    ```
+    $ sudo gpasswd -a ${USER} docker
+    ```
+4. 拷贝并命名配置文件（Windows系统请用`copy`命令），启动：
+    ```
+    $ cd dnmp                                           # 进入项目目录
+    $ cp env.sample .env                                # 复制环境变量文件
+    $ cp docker-compose.sample.yml docker-compose.yml   # 复制 docker-compose 配置文件。默认启动3个服务：
+                                                        # Nginx、PHP7和MySQL8。要开启更多其他服务，如Redis、
+                                                        # PHP5.6、PHP5.4、MongoDB，ElasticSearch等，请删
+                                                        # 除服务块前的注释
+    $ docker-compose up                                 # 启动
+    ```
+5. 在浏览器中访问：`http://localhost`或`https://localhost`(自签名HTTPS演示)就能看到效果，PHP代码在文件`./www/localhost/index.php`。
 
+## 3.PHP和扩展
+### 3.1 切换Nginx使用的PHP版本
+首先，需要启动其他版本的PHP，比如PHP5.4，那就先在`docker-compose.yml`文件中删除PHP5.4前面的注释，再启动PHP5.4容器。
 
-**当前版本(推荐)**
+PHP5.4启动后，打开Nginx 配置，修改`fastcgi_pass`的主机地址，由`php`改为`php54`，如下：
 ```
-git clone https://github.com/voocel/docker-lnmp.git
-cd docker-lnmp
-chmod 777 ./redis/redis.log
-chmod -R 777 ./redis/data
-docker-compose up -d
+    fastcgi_pass   php:9000;
 ```
-*站点根目录为 docker-lnmp/www*
+为：
+```
+    fastcgi_pass   php54:9000;
+```
+其中 `php` 和 `php54` 是`docker-compose.yml`文件中服务器的名称。
 
-*该版本是通过拉取官方已经制作好的各个服务的镜像，再通过Dockerfile相关命令根据自身需求做相应的调整。所以该方式构建迅速使用方便，因为是基于Alpine Linux所以占用空间很小。*
-
-**ELK(+filebeat)**
-
-Elasticsearch、Logstash、Kibana、Filebeat一键搭建日志收集系统
-```
-cd docker-lnmp/elk
-chmod +x elk.sh
-./elk.sh
-```
-### 测试
-使用docker ps查看容器启动状态,若全部正常启动了则
-通过访问127.0.0.1、127.0.0.1/index.php、127.0.0.1/db.php、127.0.0.1/redis.php 即可完成测试
-(若想使用https则请修改nginx下的dockerfile，和nginx.conf按提示去掉注释即可，灵需要在ssl文件夹中加入自己的证书文件，本项目自带的是空的，需要自己替换，保持文件名一致)
-
-
-### 进入容器内部
-1. 使用 docker exec
-```
-docker exec -it ngixn /bin/sh
-```
-2. 使用nsenter命令
-```
-# cd /tmp; curl https://www.kernel.org/pub/linux/utils/util-linux/v2.24/util-linux-2.24.tar.gz | tar -zxf-; cd util-linux-2.24;
-# ./configure --without-ncurses
-# make nsenter && sudo cp nsenter /usr/local/bin
-``` 
-为了连接到容器，你还需要找到容器的第一个进程的 PID，可以通过下面的命令获取再执行。
-```
-PID=$(docker inspect --format "{{ .State.Pid }}" container_id)
-# nsenter --target $PID --mount --uts --ipc --net --pid
-```
-
-### PHP扩展安装
-1. 安装PHP官方源码包里的扩展(如：同时安装pdo_mysql mysqli pcntl gd四个个扩展)
-
-*在php的Dockerfile中加入以下命令*
-```
-RUN apk add libpng-dev \
-    && docker-php-ext-install pdo_mysql mysqli pcntl gd \
-```
-*注:因为该镜像缺少gd库所需的libpng-dev包，所以需要先下载这个包*
-
-2. PECL 扩展安装
-```
-# 安装扩展
-RUN pecl install memcached-2.2.0 \
-    # 启用扩展
-    && docker-php-ext-enable memcached \
-```
-
-3. 通过下载扩展源码，编译安装的方式安装
-```
-# 安装Redis和swoole扩展
-RUN cd ~ \
-    && wget https://github.com/phpredis/phpredis/archive/5.0.2.tar.gz \
-    && tar -zxvf 5.0.2.tar.gz \
-    && mkdir -p /usr/src/php/ext \
-    && mv phpredis-5.0.2 /usr/src/php/ext/redis \
-    && docker-php-ext-install redis \
-
-    && apk add libstdc++\
-    && cd ~ \
-    && wget https://github.com/swoole/swoole-src/archive/v4.4.2.tar.gz \
-    && tar -zxvf v4.4.2.tar.gz \
-    && mkdir -p /usr/src/php/ext \
-    && mv swoole-src-4.4.2 /usr/src/php/ext/swoole \
-    && docker-php-ext-install swoole \
-```
-*注:因为该镜像需要先安装swoole依赖的libstdc++，否则安装成功后无法正常加载swoole扩展*
-
-### Composer安装
-在Dockerfile中加入
+最后，**重启 Nginx** 生效。
 ```bash
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin/ --filename=composer \
+$ docker exec -it nginx nginx -s reload
+```
+这里两个`nginx`，第一个是容器名，第二个是容器中的`nginx`程序。
+
+
+### 3.2 安装PHP扩展
+PHP的很多功能都是通过扩展实现，而安装扩展是一个略费时间的过程，
+所以，除PHP内置扩展外，在`env.sample`文件中我们仅默认安装少量扩展，
+如果要安装更多扩展，请打开你的`.env`文件修改如下的PHP配置，
+增加需要的PHP扩展：
+```bash
+PHP_EXTENSIONS=pdo_mysql,opcache,redis       # PHP 要安装的扩展列表，英文逗号隔开
+PHP54_EXTENSIONS=opcache,redis                 # PHP 5.4要安装的扩展列表，英文逗号隔开
+```
+然后重新build PHP镜像。
+```bash
+docker-compose build php
+```
+可用的扩展请看同文件的`env.sample`注释块说明。
+
+### 3.3 快速安装php扩展
+1.进入容器:
+
+```sh
+docker exec -it php /bin/sh
+
+install-php-extensions apcu 
+```
+2.支持快速安装扩展列表
+
+<!-- START OF EXTENSIONS TABLE -->
+<!-- ########################################################### -->
+<!-- #                                                         # -->
+<!-- #  DO NOT EDIT THIS TABLE: IT IS GENERATED AUTOMATICALLY  # -->
+<!-- #                                                         # -->
+<!-- #  EDIT THE data/supported-extensions FILE INSTEAD        # -->
+<!-- #                                                         # -->
+<!-- ########################################################### -->
+| Extension | PHP 5.5 | PHP 5.6 | PHP 7.0 | PHP 7.1 | PHP 7.2 | PHP 7.3 | PHP 7.4 |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| amqp | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| apcu | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| apcu_bc |  |  | &check; | &check; | &check; | &check; | &check; |
+| bcmath | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| bz2 | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| calendar | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| cmark |  |  | &check; | &check; | &check; | &check; | &check; |
+| dba | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| decimal |  |  | &check; | &check; | &check; | &check; | &check; |
+| enchant | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| exif | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| ffi |  |  |  |  |  |  | &check; |
+| gd | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| gettext | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| gmagick | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| gmp | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| grpc | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| http | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| igbinary | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| imagick | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| imap | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| interbase | &check; | &check; | &check; | &check; | &check; | &check; |  |
+| intl | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| ldap | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| mailparse | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| mcrypt | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| memcache | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| memcached | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| mongo | &check; | &check; |  |  |  |  |  |
+| mongodb | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| msgpack | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| mssql | &check; | &check; |  |  |  |  |  |
+| mysql | &check; | &check; |  |  |  |  |  |
+| mysqli | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| oauth | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| odbc | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| opcache | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| opencensus |  |  | &check; | &check; | &check; | &check; | &check; |
+| parallel[*](#special-requirements-for-parallel) |  |  |  | &check; | &check; | &check; | &check; |
+| pcntl | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pcov |  |  | &check; | &check; | &check; | &check; | &check; |
+| pdo_dblib | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pdo_firebird | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pdo_mysql | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pdo_odbc | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pdo_pgsql | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pdo_sqlsrv |  |  | &check; | &check; | &check; | &check; | &check; |
+| pgsql | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| propro | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| protobuf | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pspell | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| pthreads[*](#special-requirements-for-pthreads) | &check; | &check; | &check; |  |  |  |  |
+| raphf | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| rdkafka | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| recode | &check; | &check; | &check; | &check; | &check; | &check; |  |
+| redis | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| shmop | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| snmp | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| snuffleupagus |  |  | &check; | &check; | &check; | &check; | &check; |
+| soap | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| sockets | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| solr | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| sqlsrv |  |  | &check; | &check; | &check; | &check; | &check; |
+| ssh2 | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| sybase_ct | &check; | &check; |  |  |  |  |  |
+| sysvmsg | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| sysvsem | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| sysvshm | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| tdlib[*](#special-requirements-for-tdlib) |  |  | &check; | &check; | &check; | &check; | &check; |
+| tidy | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| timezonedb | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| uopz | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| uuid | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| wddx | &check; | &check; | &check; | &check; | &check; | &check; |  |
+| xdebug | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| xhprof | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| xmlrpc | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| xsl | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| yaml | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| zip | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+| zookeeper | &check; | &check; | &check; | &check; | &check; | &check; | &check; |
+
+此扩展来自[https://github.com/mlocati/docker-php-extension-installer](https://github.com/mlocati/docker-php-extension-installer)
+参考示例文件
+
+### 3.4 Host中使用php命令行（php-cli）
+
+1. 参考[bash.alias.sample](bash.alias.sample)示例文件，将对应 php cli 函数拷贝到主机的 `~/.bashrc`文件。
+2. 让文件起效：
+    ```bash
+    source ~/.bashrc
+    ```
+3. 然后就可以在主机中执行php命令了：
+    ```bash
+    ~ php -v
+    PHP 7.2.13 (cli) (built: Dec 21 2018 02:22:47) ( NTS )
+    Copyright (c) 1997-2018 The PHP Group
+    Zend Engine v3.2.0, Copyright (c) 1998-2018 Zend Technologies
+        with Zend OPcache v7.2.13, Copyright (c) 1999-2018, by Zend Technologies
+        with Xdebug v2.6.1, Copyright (c) 2002-2018, by Derick Rethans
+    ```
+### 3.5 使用composer
+**方法1：主机中使用composer命令**
+1. 确定composer缓存的路径。比如，我的dnmp下载在`~/dnmp`目录，那composer的缓存路径就是`~/dnmp/data/composer`。
+2. 参考[bash.alias.sample](bash.alias.sample)示例文件，将对应 php composer 函数拷贝到主机的 `~/.bashrc`文件。
+    > 这里需要注意的是，示例文件中的`~/dnmp/data/composer`目录需是第一步确定的目录。
+3. 让文件起效：
+    ```bash
+    source ~/.bashrc
+    ```
+4. 在主机的任何目录下就能用composer了：
+    ```bash
+    cd ~/dnmp/www/
+    composer create-project yeszao/fastphp project --no-dev
+    ```
+5. （可选）第一次使用 composer 会在 `~/dnmp/data/composer` 目录下生成一个**config.json**文件，可以在这个文件中指定国内仓库，例如：
+    ```json
+    {
+        "config": {},
+        "repositories": {
+            "packagist": {
+                "type": "composer",
+                "url": "https://packagist.laravel-china.org"
+            }
+        }
+    }
+
+    ```
+**方法二：容器内使用composer命令**
+
+还有另外一种方式，就是进入容器，再执行`composer`命令，以PHP7容器为例：
+```bash
+docker exec -it php /bin/sh
+cd /www/localhost
+composer update
+```
+    
+## 4.管理命令
+### 4.1 服务器启动和构建命令
+如需管理服务，请在命令后面加上服务器名称，例如：
+```bash
+$ docker-compose up                         # 创建并且启动所有容器
+$ docker-compose up -d                      # 创建并且后台运行方式启动所有容器
+$ docker-compose up nginx php mysql         # 创建并且启动nginx、php、mysql的多个容器
+$ docker-compose up -d nginx php  mysql     # 创建并且已后台运行的方式启动nginx、php、mysql容器
+
+
+$ docker-compose start php                  # 启动服务
+$ docker-compose stop php                   # 停止服务
+$ docker-compose restart php                # 重启服务
+$ docker-compose build php                  # 构建或者重新构建服务
+
+$ docker-compose rm php                     # 删除并且停止php容器
+$ docker-compose down                       # 停止并删除容器，网络，图像和挂载卷
 ```
 
-## 常见问题处理
-* redis启动失败问题
-在v2版本中redis的启动用户为redis不是root,所以在宿主机中挂载的./redis/redis.log和./redis/data需要有写入权限。
+### 4.2 添加快捷命令
+在开发的时候，我们可能经常使用`docker exec -it`进入到容器中，把常用的做成命令别名是个省事的方法。
 
-	```
-	   chmod 777 ./redis/redis.log
-	   chmod 777 ./redis/data
-	```
-* MYSQL连接失败问题
-在v2版本中是最新的MySQL8,而该版本的密码认证方式为Caching_sha2_password,而低版本的php和mysql可视化工具可能不支持,可通过phpinfo里的mysqlnd的Loaded plugins查看是否支持该认证方式,否则需要修改为原来的认证方式mysql_native_password:
-select user,host,plugin,authentication_string from mysql.user;
-ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '123456';
-FLUSH PRIVILEGES;
-
-* 注意挂载目录的权限问题，不然容器成功启动几秒后立刻关闭，例：以下/data/run/mysql 目录没权限的情况下就会出现刚才那种情况
-		```
-		docker run --name mysql57 -d -p 3306:3306 -v /data/mysql:/var/lib/mysql -v /data/logs/mysql:/var/log/mysql -v /data/run/mysql:/var/run/mysqld -e MYSQL_ROOT_PASSWORD=123456 -it centos/mysql:v5.7
-		```
-
-* 需要注意php.ini 中的目录对应  mysql 的配置的目录需要挂载才能获取文件内容，不然php连接mysql失败
-
-		```
-		# php.ini
-		mysql.default_socket = /data/run/mysql/mysqld.sock
-		mysqli.default_socket = /data/run/mysql/mysqld.sock
-		pdo_mysql.default_socket = /data/run/mysql/mysqld.sock
-		
-		# mysqld.cnf
-		pid-file       = /var/run/mysqld/mysqld.pid
-		socket         = /var/run/mysqld/mysqld.sock
-		
-		```
-
-* 使用php连接不上redis 
-	```
-	# 错误的
-	$redis = new Redis;
-	$rs = $redis->connect('127.0.0.1', 6379);
-	
-	```
-	
-	php连接不上，查看错误日志
-	```
-	PHP Fatal error:  Uncaught RedisException: Redis server went away in /www/index.php:7
-	```
-	考虑到docker 之间的通信应该不可以用127.0.0.1 应该使用容器里面的ip，所以查看redis 容器的ip
-	```
-    [root@localhost docker]# docker ps
-    CONTAINER ID        IMAGE                                COMMAND                  CREATED             STATUS              PORTS                                      NAMES
-    b5f7dcecff4c        docker_nginx                         "/usr/sbin/nginx -..."   4 seconds ago       Up 3 seconds        0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp   nginx
-    60fd2df36d0e        docker_php                           "/usr/local/php/sb..."   7 seconds ago       Up 5 seconds        9000/tcp                                   php
-    7c7df6f8eb91        hub.c.163.com/library/mysql:latest   "docker-entrypoint..."   12 seconds ago      Up 11 seconds       3306/tcp                                   mysql
-    a0ebd39f0f64        docker_redis                         "usr/local/redis/s..."   13 seconds ago      Up 12 seconds       6379/tcp                                   redis
-	```
-	注意测试的时候连接地址需要容器的ip或者容器名names，比如redis、mysql.
-	例如nginx配置php文件解析 fastcgi_pass   php:9000;
-	例如php连接redis $redis = new Redis;$res = $redis->connect('redis', 6379);
-	
-	*因为容器ip是动态的，重启之后就会变化，所以可以创建静态ip*
-
-	第一步：创建自定义网络
-	```
-	#备注：这里选取了172.172.0.0网段，也可以指定其他任意空闲的网段
-	docker network create --subnet=172.171.0.0/16 docker-at
-	docker run --name redis326 --net docker-at --ip 172.171.0.20 -d -p 6379:6379  -v /data:/data -it centos/redis:v3.2.6
-	```
-	
-	连接redis 就可以配置对应的ip地址了，连接成功
-	```
-	$redis = new Redis;
-	$rs = $redis->connect('172.171.0.20', 6379);
-	```
-	另外还有种可能phpredis连接不上redis，需要把redis.conf配置略作修改。
-	```
-	bind 127.0.0.1
-	改为：
-	bind 0.0.0.0
-	```
-* 启动docker web服务时 虚拟机端口转发 外部无法访问 一般出现在yum update的时候（WARNING: IPv4 forwarding is disabled. Networking will not work.）或者宿主机可以访问，但外部无法访问
+首先，在主机中查看可用的容器：
+```bash
+$ docker ps           # 查看所有运行中的容器
+$ docker ps -a        # 所有容器
 ```
-vi /etc/sysctl.conf
-或者
-vi /usr/lib/sysctl.d/00-system.conf
-添加如下代码：
-    net.ipv4.ip_forward=1
+输出的`NAMES`那一列就是容器的名称，如果使用默认配置，那么名称就是`nginx`、`php`、`php56`、`mysql`等。
 
-重启network服务
-systemctl restart network
-
-查看是否修改成功
-sysctl net.ipv4.ip_forward
-
-如果返回为"net.ipv4.ip_forward = 1"则表示成功了
+然后，打开`~/.bashrc`或者`~/.zshrc`文件，加上：
+```bash
+alias dnginx='docker exec -it nginx /bin/sh'
+alias dphp='docker exec -it php /bin/sh'
+alias dphp56='docker exec -it php56 /bin/sh'
+alias dphp54='docker exec -it php54 /bin/sh'
+alias dmysql='docker exec -it mysql /bin/bash'
+alias dredis='docker exec -it redis /bin/sh'
 ```
-* 如果使用最新的MySQL8无法正常连接，由于最新版本的密码加密方式改变，导致无法远程连接。
+下次进入容器就非常快捷了，如进入php容器：
+```bash
+$ dphp
 ```
-# 修改密码加密方式
-ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '123456';
+
+### 4.3 查看docker网络
+```sh
+ifconfig docker0
+```
+用于填写`extra_hosts`容器访问宿主机的`hosts`地址
+
+## 5.使用Log
+
+Log文件生成的位置依赖于conf下各log配置的值。
+
+### 5.1 Nginx日志
+Nginx日志是我们用得最多的日志，所以我们单独放在根目录`log`下。
+
+`log`会目录映射Nginx容器的`/var/log/nginx`目录，所以在Nginx配置文件中，需要输出log的位置，我们需要配置到`/var/log/nginx`目录，如：
+```
+error_log  /var/log/nginx/nginx.localhost.error.log  warn;
 ```
 
 
-### 常用命令
-* `docker start` 容器名（容器ID也可以）
-* `docker stop` 容器名（容器ID也可以）
-* `docker run` 命令加 -d 参数，docker 会将容器放到后台运行
-* `docker ps` 正在运行的容器
-* `docker logs` --tail 10 -tf 容器名    查看容器的日志文件,加-t是加上时间戳，f是跟踪某个容器的最新日志而不必读整个日志文件
-* `docker top` 容器名 查看容器内部运行的进程
-* `docker exec -d` 容器名 touch /etc/new_config_file  通过后台命令创建一个空文件
-* `docker run --restart=always --name` 容器名 -d ubuntu /bin/sh -c "while true;do echo hello world; sleep 1; done" 无论退出代码是什么，docker都会自动重启容器，可以设置 --restart=on-failure:5 自动重启的次数
-* `docker inspect` 容器名   对容器进行详细的检查，可以加 --format='{(.State.Running)}' 来获取指定的信息
-* `docker rm` 容器ID  删除容器，注，运行中的容器无法删除
-* `docker rm $(docker ps -aq)` 删除所有容器
-* `docker rmi $(docker images -aq)` 删除所有镜像
-* `docker rmi $(docker images -f "dangling=true" -q)` 删除`<none>:<none>`空悬镜像
-* `docker images` 列出镜像
-* `docker pull` 镜像名:标签 拉镜像
-* `docker search`  查找docker Hub 上公共的可用镜像 
-* `docker build -t='AT/web_server:v1'`  命令后面可以直接加上github仓库的要目录下存在的Dockerfile文件。 命令是编写Dockerfile 之后使用的。-t选项为新镜像设置了仓库和名称:标签
-* `docker login`  登陆到Docker Hub，个人认证信息将会保存到$HOME/.dockercfg, 
-* `docker commit -m="comment " --author="AT" ` 容器ID 镜像的用户名/仓库名:标签 不推荐这种方法，推荐dockerfile
-* `docker history` 镜像ID 深入探求镜像是如何构建出来的
-* `docker port` 镜像ID 端口    查看映射情况的容器的ID和容器的端口号，假设查询80端口对应的映射的端口
-* `run` 运行一个容器，  -p 8080:80  将容器内的80端口映射到docker宿主机的某一特定端口，将容器的80端口绑定到宿主机的8080端口，另 127.0.0.1:80:80 是将容器的80端口绑定到宿主机这个IP的80端口上，-P 是将容器内的80端口对本地的宿主机公开
-* http://docs.docker.com/reference/builder/ 查看更多的命令
-* `docker push` 镜像名 将镜像推送到 Docker Hub
-* `docker rmi` 镜像名  删除镜像
-* `docker attach` 容器ID   进入容器
-* ############################################################
-* `docker network create --subnet=172.171.0.0/16 docker-at` 选取172.172.0.0网段
-* `docker build` 就可以加 -ip指定容器ip 172.171.0.10 了
+### 5.2 PHP-FPM日志
+大部分情况下，PHP-FPM的日志都会输出到Nginx的日志中，所以不需要额外配置。
 
-**删除所有容器和镜像的命令**
-
-```
-docker rm `docker ps -a |awk '{print $1}' | grep [0-9a-z]` 删除停止的容器
-docker rmi $(docker images | awk '/^<none>/ { print $3 }')
+另外，建议直接在PHP中打开错误日志：
+```php
+error_reporting(E_ALL);
+ini_set('error_reporting', 'on');
+ini_set('display_errors', 'on');
 ```
 
+如果确实需要，可按一下步骤开启（在容器中）。
 
-### Dockerfile语法
+1. 进入容器，创建日志文件并修改权限：
+    ```bash
+    $ docker exec -it php /bin/sh
+    $ mkdir /var/log/php
+    $ cd /var/log/php
+    $ touch php-fpm.error.log
+    $ chmod a+w php-fpm.error.log
+    ```
+2. 主机上打开并修改PHP-FPM的配置文件`conf/php-fpm.conf`，找到如下一行，删除注释，并改值为：
+    ```
+    php_admin_value[error_log] = /var/log/php/php-fpm.error.log
+    ```
+3. 重启PHP-FPM容器。
 
-* `MAINTAINER`  标识镜像的作者和联系方式
-* `EXPOSE` 可以指定多个EXPOSE向外部公开多个端口，可以帮助多个容器链接
-* `FROM`  指令指定一个已经存在的镜像
-* `\#`号代表注释
-* `RUN` 运行命令,会在shell 里使用命令包装器 /bin/sh -c 来执行。如果是在一个不支持shell 的平台上运行或者不希望在shell 中运行，也可以 使用exec 格式 的RUN指令
-* `ENV REFRESHED_AT` 环境变量 这个环境亦是用来表明镜像模板最后的更新时间
-* `VOLUME` 容器添加卷。一个卷是可以 存在于一个或多个容器内的特定的目录，对卷的修改是立刻生效的，对卷的修改不会对更新镜像产品影响，例:VOLUME["/opt/project","/data"]
-* `ADD` 将构建环境 下的文件 和目录复制到镜像 中。例 ADD nginx.conf /conf/nginx.conf 也可以是取url 的地址文件，如果是压缩包，ADD命令会自动解压、
-* `USER` 指定镜像用那个USER 去运行
-* `COPY` 是复制本地文件，而不会去做文件提取（解压包不会自动解压） 例：COPY conf.d/ /etc/apache2/  将本地conf.d目录中的文件复制到/etc/apache2/目录中
+### 5.3 MySQL日志
+因为MySQL容器中的MySQL使用的是`mysql`用户启动，它无法自行在`/var/log`下的增加日志文件。所以，我们把MySQL的日志放在与data一样的目录，即项目的`mysql`目录下，对应容器中的`/var/lib/mysql/`目录。
+```bash
+slow-query-log-file     = /var/lib/mysql/mysql.slow.log
+log-error               = /var/lib/mysql/mysql.error.log
+```
+以上是mysql.conf中的日志文件的配置。
 
-### docker-compose.yml 语法说明
-* `image` 指定为镜像名称或镜像ID。如果镜像不存在，Compose将尝试从互联网拉取这个镜像
-* `build` 指定Dockerfile所在文件夹的路径。Compose将会利用他自动构建这个镜像，然后使用这个镜像
-* `command` 覆盖容器启动后默认执行的命令
-* `links` 链接到其他服务容器，使用服务名称(同时作为别名)或服务别名（SERVICE:ALIAS）都可以
-* `external_links` 链接到docker-compose.yml外部的容器，甚至并非是Compose管理的容器。参数格式和links类似
-* `ports` 暴露端口信息。宿主机器端口：容器端口（HOST:CONTAINER）格式或者仅仅指定容器的端口（宿主机器将会随机分配端口）都可以(注意：当使用 HOST:CONTAINER 格式来映射端口时，如果你使用的容器端口小于 60 你可能会得到错误得结果，因为 YAML 将会解析 xx:yy 这种数字格式为 60 进制。所以建议采用字符串格式。)
-* `expose` 暴露端口，与posts不同的是expose只可以暴露端口而不能映射到主机，只供外部服务连接使用；仅可以指定内部端口为参数
-* `volumes` 设置卷挂载的路径。可以设置宿主机路径:容器路径（host:container）或加上访问模式（host:container:ro）ro就是readonly的意思，只读模式
-* `volunes_from` 挂载另一个服务或容器的所有数据卷
-* `environment` 设置环境变量。可以属于数组或字典两种格式。如果只给定变量的名称则会自动加载它在Compose主机上的值，可以用来防止泄露不必要的数据
-* `env_file`  从文件中获取环境变量，可以为单独的文件路径或列表。如果通过docker-compose -f FILE指定了模板文件，则env_file中路径会基于模板文件路径。如果有变量名称与environment指令冲突，则以后者为准(环境变量文件中每一行都必须有注释，支持#开头的注释行)
-* `extends` 基于已有的服务进行服务扩展。例如我们已经有了一个webapp服务，模板文件为common.yml。编写一个新的 development.yml 文件，使用 common.yml 中的 webapp 服务进行扩展。后者会自动继承common.yml中的webapp服务及相关的环境变量
-* `net` 设置网络模式。使用和docker client 的 --net 参数一样的值
-* `pid` 和宿主机系统共享进程命名空间，打开该选项的容器可以相互通过进程id来访问和操作
-* `dns` 配置DNS服务器。可以是一个值，也可以是一个列表
-* `cap_add，cap_drop` 添加或放弃容器的Linux能力（Capability）
-* `dns_search` 配置DNS搜索域。可以是一个值也可以是一个列表
-* 注意：使用compose对Docker容器进行编排管理时，需要编写docker-compose.yml文件，初次编写时，容易遇到一些比较低级的问题，导致执行docker-compose up时先解析yml文件的错误。比较常见的是yml对缩进的严格要求。yml文件还行后的缩进，不允许使用tab键字符，只能使用空格，而空格的数量也有要求，一般两个空格。
+
+
+## 6.数据库管理
+本项目默认在`docker-compose.yml`中开启了用于MySQL在线管理的*phpMyAdmin*，以及用于redis在线管理的*phpRedisAdmin*，可以根据需要修改或删除。
+
+### 6.1 phpMyAdmin
+phpMyAdmin容器映射到主机的端口地址是：`8080`，所以主机上访问phpMyAdmin的地址是：
+```
+http://localhost:8080
+```
+
+MySQL连接信息：
+- host：(本项目的MySQL容器网络)
+- port：`3306`
+- username：（手动在phpmyadmin界面输入）
+- password：（手动在phpmyadmin界面输入）
+
+### 6.2 phpRedisAdmin
+phpRedisAdmin容器映射到主机的端口地址是：`8081`，所以主机上访问phpMyAdmin的地址是：
+```
+http://localhost:8081
+```
+
+Redis连接信息如下：
+- host: (本项目的Redis容器网络)
+- port: `6379`
+
+
+## 7.在正式环境中安全使用
+要在正式环境中使用，请：
+1. 在php.ini中关闭XDebug调试
+2. 增强MySQL数据库访问的安全策略
+3. 增强redis访问的安全策略
+
+
+## 8 常见问题
+### 8.1 如何在PHP代码中使用curl？
+参考这个issue：[https://github.com/yeszao/dnmp/issues/91](https://github.com/yeszao/dnmp/issues/91)
+
+### 8.2 Docker使用cron定时任务 
+[Docker使用cron定时任务](https://www.awaimai.com/2615.html)
+
+### 8.3 Docker容器时间
+容器时间在.env文件中配置`TZ`变量，所有支持的时区请看[时区列表·维基百科](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)或者[PHP所支持的时区列表·PHP官网](https://www.php.net/manual/zh/timezones.php)。
+
+### 8.4 如何连接MySQL和Redis服务器
+这要分两种情况，
+
+第一种情况，在**PHP代码中**。
+```php
+// 连接MySQL
+$dbh = new PDO('mysql:host=mysql;dbname=mysql', 'root', '123456');
+
+// 连接Redis
+$redis = new Redis();
+$redis->connect('redis', 6379);
+```
+因为容器与容器是`expose`端口联通的，而且在同一个`networks`下，所以连接的`host`参数直接用容器名称，`port`参数就是容器内部的端口。更多请参考[《docker-compose ports和expose的区别》](https://www.awaimai.com/2138.html)。
+
+第二种情况，**在主机中**通过**命令行**或者**Navicat**等工具连接。主机要连接mysql和redis的话，要求容器必须经过`ports`把端口映射到主机了。以 mysql 为例，`docker-compose.yml`文件中有这样的`ports`配置：`3306:3306`，就是主机的3306和容器的3306端口形成了映射，所以我们可以这样连接：
+```bash
+$ mysql -h127.0.0.1 -uroot -p123456 -P3306
+$ redis-cli -h127.0.0.1
+```
+这里`host`参数不能用localhost是因为它默认是通过sock文件与mysql通信，而容器与主机文件系统已经隔离，所以需要通过TCP方式连接，所以需要指定IP。
+
+### 8.5 容器内的php如何连接宿主机MySQL
+1.宿主机执行`ifconfig docker0`得到`inet`就是要连接的`ip`地址
+```sh
+$ ifconfig docker0
+docker0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        inet 172.17.0.1  netmask 255.255.0.0  broadcast 172.17.255.255
+        ...
+```
+2.运行宿主机Mysql命令行
+```mysql
+ mysql>GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '123456' WITH GRANT OPTION;
+ mysql>flush privileges;
+// 其中各字符的含义：
+// *.* 对任意数据库任意表有效
+// "root" "123456" 是数据库用户名和密码
+// '%' 允许访问数据库的IP地址，%意思是任意IP，也可以指定IP
+// flush privileges 刷新权限信息
+```
+
+3.接着直接php容器使用`172.0.17.1:3306`连接即可
+## License
+MIT
+
+
